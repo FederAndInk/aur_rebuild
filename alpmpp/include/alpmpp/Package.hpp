@@ -15,10 +15,12 @@ class Handle;
 class Package
 {
   alpm_pkg_t* pkg{nullptr};
+  std::string name;
   std::string orig_db;
 
 public:
   Package(std::string_view name, alpm_db_t* db, Alpm_range<alpm_db_t*> sync_dbs) noexcept
+    : name(name)
   {
     pkg = alpm_db_get_pkg(db, name.data());
     if (!is_valid())
@@ -36,6 +38,11 @@ public:
   [[nodiscard]] std::string_view get_name() const noexcept
   {
     return alpm_pkg_get_name(pkg);
+  }
+
+  [[nodiscard]] std::string_view get_provided_name() const noexcept
+  {
+    return name;
   }
 
   [[nodiscard]] std::string_view get_version() const noexcept
