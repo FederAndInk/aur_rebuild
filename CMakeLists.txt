@@ -4,9 +4,12 @@ project(
   VERSION 0.1.0
   DESCRIPTION ""
   HOMEPAGE_URL ""
-  LANGUAGES CXX)
+  LANGUAGES CXX
+)
+
+add_subdirectory(alpmpp)
 
 add_executable(rebuildaur)
 target_sources(rebuildaur PRIVATE rebuildaur.cpp)
 target_compile_features(rebuildaur PRIVATE cxx_std_20)
-target_link_libraries(rebuildaur PRIVATE alpm)
+target_link_libraries(rebuildaur PRIVATE alpmpp)
