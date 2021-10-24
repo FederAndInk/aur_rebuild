@@ -13,3 +13,6 @@ add_executable(rebuildaur)
 target_sources(rebuildaur PRIVATE rebuildaur.cpp)
 target_compile_features(rebuildaur PRIVATE cxx_std_20)
 target_link_libraries(rebuildaur PRIVATE alpmpp)
+
+include(GNUInstallDirs)
+install(TARGETS rebuildaur RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
