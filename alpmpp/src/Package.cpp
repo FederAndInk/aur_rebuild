@@ -11,7 +11,7 @@ namespace alpmpp
 {
   return list_to_vector<Package, alpm_depend_t*>(
     alpm_pkg_get_depends(pkg),
-    [&handle, this](alpm_depend_t* dep) { return handle.get_local_pkg(dep->name); });
+    [&handle](alpm_depend_t* dep) { return handle.get_local_pkg(dep->name); });
 }
 
 [[nodiscard]] std::vector<Package> Package::get_optdepends(Handle& handle) const
@@ -19,7 +19,7 @@ namespace alpmpp
 {
   return list_to_vector<Package, alpm_depend_t*>(
     alpm_pkg_get_optdepends(pkg),
-    [&handle, this](alpm_depend_t* dep) { return handle.get_local_pkg(dep->name); });
+    [&handle](alpm_depend_t* dep) { return handle.get_local_pkg(dep->name); });
 }
 
 void Package::init_from_provider(std::string_view name, alpm_db_t* db) noexcept
