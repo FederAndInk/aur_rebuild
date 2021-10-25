@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using namespace std::literals;
@@ -29,52 +30,29 @@ struct string_hash
 
 class Dependecy_checker
 {
-  alpmpp::Handle& handle;
+  alpmpp::Handle&                      handle;
+  std::unordered_set<std::string_view> excludes;
 
   std::unordered_map<std::string, bool, string_hash, std::equal_to<>> seen;
 
 public:
-  explicit Dependecy_checker(alpmpp::Handle& handle) : handle(handle) {}
+  explicit Dependecy_checker(alpmpp::Handle&                      handle,
+                             std::unordered_set<std::string_view> excludes)
+    : handle(handle), excludes(std::move(excludes))
+  {
+  }
 
   void reset()
   {
     seen.clear();
   }
 
-  bool check_deps(alpmpp::Package& pkg)
+  enum class Lvl
   {
-    std::string name{pkg.get_name()};
-    if (auto it = seen.find(name); it != std::end(seen))
-    {
-      return it->second;
-    }
-    if (!pkg.get_orig_db().empty())
-    {
-      return false;
-    }
-    auto deps = pkg.get_depends(handle);
-    bool rebuild = false;
-    seen[name] = rebuild;
-
-    for (auto&& dep : deps)
-    {
-      if (dep.get_installdate() > pkg.get_builddate())
-      {
-        rebuild = true;
-      }
-      seen.at(name) = rebuild;
-      auto cdeps_ret = check_deps(dep);
-      rebuild = rebuild || cdeps_ret;
-    }
-
-    if (rebuild)
-    {
-      std::cout << pkg.get_name() << "\n";
-    }
-
-    return rebuild;
-  }
-
+    NONE,
+    EXPLAIN
+  };
+  template <Lvl explain = Lvl::NONE>
   bool check_deps_explain(alpmpp::Package& pkg)
   {
     std::string name{pkg.get_name()};
@@ -93,27 +71,38 @@ public:
     std::vector<std::string_view> why;
     for (auto&& dep : deps)
     {
-      if (dep.get_installdate() > pkg.get_builddate())
+      if (!excludes.contains(dep.get_name()) &&
+          dep.get_installdate() > pkg.get_builddate())
       {
         rebuild = true;
-        why.push_back(dep.get_name());
+        if constexpr (explain == Lvl::EXPLAIN)
+        {
+          why.push_back(dep.get_name());
+        }
       }
       seen.at(name) = rebuild;
-      auto cdeps_ret = check_deps_explain(dep);
+      auto cdeps_ret = check_deps_explain<explain>(dep);
       rebuild = rebuild || cdeps_ret;
     }
 
     if (rebuild)
     {
-      std::cout << pkg.get_name() << " caused by: ";
-      if (why.empty())
+      std::cout << pkg.get_name();
+      if constexpr (explain == Lvl::EXPLAIN)
       {
-        std::cout << "^";
+        std::cout << " caused by: ";
+        if (why.empty())
+        {
+          std::cout << "^";
+        }
       }
       std::cout << "\n";
-      for (auto name : why)
+      if constexpr (explain == Lvl::EXPLAIN)
       {
-        std::cout << "  " << name << "\n";
+        for (auto name : why)
+        {
+          std::cout << "  " << name << "\n";
+        }
       }
     }
 
@@ -136,17 +125,27 @@ int main(int argc, char** argv)
     std::exit(1);
   }
   bool explain = false;
-  if (argc > 2)
+
+  std::unordered_set<std::string_view> excludes;
+  for (int i = 2; i < argc; ++i)
   {
-    if (argv[2] == "--why"sv)
+    std::string_view arg = argv[i];
+    if (arg.starts_with("--"))
     {
-      explain = true;
+      if (arg == "--why"sv)
+      {
+        explain = true;
+      }
+      else if (arg.size() > 2)
+      {
+        std::cerr << "unknown option " << arg << "\n";
+        usage(argv[0]);
+        std::exit(1);
+      }
     }
     else
     {
-      std::cerr << "unknown option " << argv[2] << "\n";
-      usage(argv[0]);
-      std::exit(1);
+      excludes.insert(arg);
     }
   }
 
@@ -158,13 +157,13 @@ int main(int argc, char** argv)
     std::cerr << argv[1] << " is not a local package\n";
     std::exit(2);
   }
-  Dependecy_checker dcheck{handle};
+  Dependecy_checker dcheck{handle, std::move(excludes)};
   if (explain)
   {
-    dcheck.check_deps_explain(pkg);
+    dcheck.check_deps_explain<Dependecy_checker::Lvl::EXPLAIN>(pkg);
   }
   else
   {
-    dcheck.check_deps(pkg);
+    dcheck.check_deps_explain<Dependecy_checker::Lvl::NONE>(pkg);
   }
 }
