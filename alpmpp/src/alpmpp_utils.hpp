@@ -25,7 +25,7 @@ inline std::string_view trim(std::string_view s)
 
 template <typename T,
           typename Lt = T,
-          typename Fn = decltype([](Lt const& lt) { return lt; })>
+          typename Fn /* = decltype([](Lt const& lt) { return lt; }) */>
 std::vector<T> list_to_vector(alpm_list_t* list, Fn fn = Fn{}) noexcept(false)
 {
   std::vector<T> v;
